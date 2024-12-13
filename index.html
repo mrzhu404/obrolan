@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walkie Talkie</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @font-face {
+            font-family: 'DS-Digital';
+            src: url('https://mrzhu404.github.io/Seven Segment.ttf') format('truetype');
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Luckiest Guy', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .walkie-talkie {
+            width: 300px;
+            padding: 20px;
+            border: 2px solid #fff;
+            border-radius: 15px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.5);
+            padding-bottom: 40px; /* Panjangkan kotak */
+        }
+
+        .user-count-container {
+            width: 100%;
+            background-color: #32cd32;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+        }
+
+        .user-count-container span {
+            font-family: 'DS-Digital', sans-serif;
+            font-size: 1.8rem;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .user-count {
+            font-size: 2rem;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .btn-walkie {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #fff;
+            color: #000;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: none;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-walkie:hover {
+            transform: scale(1.1);
+            background-color: #e74c3c;
+            color: #fff;
+        }
+
+        .btn-walkie:disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="walkie-talkie">
+        <div class="user-count-container">
+            <span>ONLINE</span>
+            <span class="user-count">0</span>
+        </div>
+        <div class="button-container">
+            <button id="btnPlay" class="btn-walkie"><i class="fa-solid fa-play"></i></button>
+            <button id="btnStop" class="btn-walkie" disabled><i class="fa-solid fa-pause"></i></button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const socket = io();
+        const btnPlay = document.getElementById('btnPlay');
+        const btnStop = document.getElementById('btnStop');
+
+        socket.on('audioMessage', function (audioChunks) {
+            const audioBlob = new Blob(audioChunks);
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+        });
+
+        socket.on('user', function (userCount) {
+            document.querySelector('.user-count').textContent = userCount;
+        });
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                const mediaRecorder = new MediaRecorder(stream);
+                let audioChunks = [];
+
+                btnPlay.addEventListener('click', () => {
+                    mediaRecorder.start();
+                    btnPlay.disabled = true;
+                    btnStop.disabled = false;
+                });
+
+                btnStop.addEventListener('click', () => {
+                    if (mediaRecorder.state !== 'inactive') {
+                        mediaRecorder.stop();
+                        btnPlay.disabled = false;
+                        btnStop.disabled = true;
+                    }
+                });
+
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener('stop', () => {
+                    socket.emit('audioMessage', audioChunks);
+                    audioChunks = [];
+                });
+            });
+    </script>
+</body>
+
+</html>
